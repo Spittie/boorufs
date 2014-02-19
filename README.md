@@ -23,3 +23,5 @@ Shortcomings:
 - Cache images on /tmp/
 - No way to navigate, needs to open directly the tag 
 - Buggy
+
+![boorufs](https://raw.github.com/Spittie/boorufs/master/boorufs.gif)
