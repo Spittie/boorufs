@@ -15,10 +15,14 @@ Once it's mounted, open `MOUNTPOINT/any_tags` to browse a tag.
 
 ## Config:
 Configuring boorufs is simple, you just need to edit booru.cfg.
-`[danbooru] ## Name of the booru
-type = danbooru ## type of the booru. danbooru and moebooru are supported so far
-url = http://danbooru.donmai.us ## Url of the booru, with "http://" and without the ending "/"
-limit = 10 ## How many files to requests. Note that most booru are limited to 100`
+
+`[danbooru]` Name of the booru
+
+`type = danbooru` type of the booru. danbooru and moebooru are supported so far
+
+`url = http://danbooru.donmai.us` Url of the booru, with "http://" and without the ending "/"
+
+`limit = 10` How many files to requests. Note that most booru are limited to 100
 
 ## Require:
 - [Requests](http://docs.python-requests.org/en/latest/)
