@@ -70,7 +70,7 @@ class BooruFS(fuse.Fuse):
                 if self.config.get(booru, "type") == "danbooru":
                     r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
                 if self.config.get(booru, "type") == "moebooru":
-                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                    r = requests.get(url + "/post.json" + "?limit=" + str(limit) + "&tags=" + search)
                 for i in r.json():
                     try:
                         dirs.append(str(i["file_url"].split("/")[-1]))
