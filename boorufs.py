@@ -41,36 +41,18 @@ class BooruFS(fuse.Fuse):
                 for section in self.config.sections():
                     dirs.append(str(section))
 
-            elif path.split("/")[-2] == '':
-                booru = path.split("/")[-1]
-                url = self.config.get(booru, "url")
-                limit = self.config.get(booru, "limit")
-                # Default to danbooru
-                r = requests.get(url + "/posts.json" + "?limit=" + str(limit))
-                if self.config.get(booru, "type") == "danbooru":
-                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit))
-                if self.config.get(booru, "type") == "moebooru":
-                    r = requests.get(url + "/post.json" + "?limit=" + str(limit))
-                for i in r.json():
-                    try:
-                        dirs.append(str(i["file_url"].split("/")[-1]))
-                        self.files[str(i["file_url"].split("/")[-1])] = {}
-                        self.files[str(i["file_url"].split("/")[-1])].update({"file_url": i["file_url"]})
-                        self.files[str(i["file_url"].split("/")[-1])].update({"booru": booru})
-                        self.files[str(i["file_url"].split("/")[-1])].update({"file_size": i["file_size"]})
-                    except KeyError:
-                        pass
-
             else:
                 booru = path.split("/")[1]
                 url = self.config.get(booru, "url")
-                search = path.split("/")[2]
+                search = ''
+                if path.split("/")[-2] != '':
+                    search = "&tags=" + path.split("/")[2]
                 limit = self.config.get(booru, "limit")
-                r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + search)
                 if self.config.get(booru, "type") == "danbooru":
-                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + search)
                 if self.config.get(booru, "type") == "moebooru":
-                    r = requests.get(url + "/post.json" + "?limit=" + str(limit) + "&tags=" + search)
+                    r = requests.get(url + "/post.json" + "?limit=" + str(limit) + search)
                 for i in r.json():
                     try:
                         dirs.append(str(i["file_url"].split("/")[-1]))
