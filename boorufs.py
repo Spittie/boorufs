@@ -3,8 +3,10 @@ import urllib
 import fuse
 import requests
 import stat
+import ConfigParser
 
 fuse.fuse_python_api = (0, 2)
+
 
 class MyStat(fuse.Stat):
     def __init__(self):
@@ -27,6 +29,8 @@ class BooruFS(fuse.Fuse):
         self.files = {}
         self.oldpath = ""
         self.olddirs = ['.', '..']
+        self.config = ConfigParser.RawConfigParser()
+        self.config.read("booru.cfg")
 
     def readdir(self, path, offset):
         dirs = self.olddirs
@@ -34,19 +38,49 @@ class BooruFS(fuse.Fuse):
             dirs = []
             self.files = {}
             if path == "/":
-                r = requests.get("http://danbooru.donmai.us/posts.json")
-            else:
-                r = requests.get("http://danbooru.donmai.us/posts.json?tags=" + path.split("/")[-1])
-            for i in r.json():
-                try:
-                    dirs.append(str(i["large_file_url"].split("/")[-1]))
-                    self.files[str(i["large_file_url"].split("/")[-1])] = i["file_size"]
-                except KeyError:
+                for section in self.config.sections():
+                    dirs.append(str(section))
+
+            elif path.split("/")[-2] == '':
+                booru = path.split("/")[-1]
+                url = self.config.get(booru, "url")
+                limit = self.config.get(booru, "limit")
+                # Default to danbooru
+                r = requests.get(url + "/posts.json" + "?limit=" + str(limit))
+                if self.config.get(booru, "type") == "danbooru":
+                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit))
+                if self.config.get(booru, "type") == "moebooru":
+                    r = requests.get(url + "/post.json" + "?limit=" + str(limit))
+                for i in r.json():
                     try:
                         dirs.append(str(i["file_url"].split("/")[-1]))
-                        self.files[str(i["file_url"].split("/")[-1])] = i["file_size"]
+                        self.files[str(i["file_url"].split("/")[-1])] = {}
+                        self.files[str(i["file_url"].split("/")[-1])].update({"file_url": i["file_url"]})
+                        self.files[str(i["file_url"].split("/")[-1])].update({"booru": booru})
+                        self.files[str(i["file_url"].split("/")[-1])].update({"file_size": i["file_size"]})
                     except KeyError:
                         pass
+
+            else:
+                booru = path.split("/")[1]
+                url = self.config.get(booru, "url")
+                search = path.split("/")[2]
+                limit = self.config.get(booru, "limit")
+                r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                if self.config.get(booru, "type") == "danbooru":
+                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                if self.config.get(booru, "type") == "moebooru":
+                    r = requests.get(url + "/posts.json" + "?limit=" + str(limit) + "&tags=" + search)
+                for i in r.json():
+                    try:
+                        dirs.append(str(i["file_url"].split("/")[-1]))
+                        self.files[str(i["file_url"].split("/")[-1])] = {}
+                        self.files[str(i["file_url"].split("/")[-1])].update({"file_url": i["file_url"]})
+                        self.files[str(i["file_url"].split("/")[-1])].update({"booru": booru})
+                        self.files[str(i["file_url"].split("/")[-1])].update({"file_size": i["file_size"]})
+                    except KeyError:
+                        pass
+
         self.oldpath = path
         self.olddirs = dirs
         for d in dirs:
@@ -57,18 +91,26 @@ class BooruFS(fuse.Fuse):
         if path.__contains__("."):
             st.st_mode = stat.S_IFREG | 0666
             st.st_nlink = 1
-            st.st_size = self.files[path.split("/")[-1]]
+            st.st_size = self.files[str(path.split("/")[-1])]["file_size"]
         return st
 
     def read(self, path, size, offset):
-        filename = path.split("/")[-1]
-        if not os.path.exists("/tmp/"+filename):
-            if filename[0:6] == "sample":
-                r = urllib.urlretrieve("http://danbooru.donmai.us/data/sample/" + filename, "/tmp/" + filename)
-            else:
-                r = urllib.urlretrieve("http://danbooru.donmai.us/data/" + filename, "/tmp/" + filename)
-        f = os.open("/tmp/"+filename, os.O_RDONLY)
-        return os.read(f, os.path.getsize("/tmp/"+filename))[offset:offset+size]
+        filename = str(path.split("/")[-1])
+        booru = self.files[filename]["booru"]
+        url = self.files[filename]["file_url"]
+        if not os.path.exists("/tmp/boorufs"):
+            os.makedirs("/tmp/boorufs")
+        if not os.path.exists("/tmp/boorufs/"+filename):
+            if self.config.get(booru, "type") == "danbooru":
+                if url[0:2] == "//":
+                    r = urllib.urlretrieve("http:" + url, "/tmp/boorufs/" + filename)
+                else:
+                    r = urllib.urlretrieve(str(self.config.get(booru, "url")) + self.files[filename]["file_url"],
+                                           "/tmp/boorufs/" + filename)
+            if self.config.get(booru, "type") == "moebooru":
+                r = urllib.urlretrieve(url, "/tmp/boorufs/" + filename)
+        f = os.open("/tmp/boorufs/"+filename, os.O_RDONLY)
+        return os.read(f, os.path.getsize("/tmp/boorufs/"+filename))[offset:offset+size]
 
     def mknod(self, path, mode, dev):
         return 0
